@@ -10,7 +10,8 @@ watch with a touch screen a tap ticks and a swipe scrolls; the buttons work on a
 Its own app id (`manifest.xml`).
 
 What it does:
-- Talks to the GKG server set in **Garmin Connect › GKG › Settings › Server** (default
+- Talks to the GKG server set in the app's settings on the phone (Connect IQ app: My Device ›
+  My Apps › GKG › Settings; Garmin Connect: the watch › Connect IQ Apps › GKG › Settings) (default
   `https://gkg.wtf.si`; a bare host name gets `https://`). Before a code it checks that
   a GKG server answers there (`/api/health`), and the code screen names the server.
   The token is kept with the server it came from: change the setting and the watch forgets
