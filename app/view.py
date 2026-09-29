@@ -121,3 +121,15 @@ def clean_changes(raw) -> list[dict]:
         if len(out) >= 50:
             break
     return out
+
+
+def allowed_changes(changes: list[dict], shown: dict) -> list[dict]:
+    """Only changes to what the watch was given: items of the lists in `shown` (a watch view)."""
+    items = {l["id"]: {i["id"] for i in l.get("items", [])} for l in shown.get("lists", []) if l.get("kind") == "list"}
+    out = []
+    for c in changes:
+        if c["op"] == "check" and c["item"] in items.get(c["list"], ()):
+            out.append(c)
+        elif c["op"] == "add" and c["list"] in items:
+            out.append(c)
+    return out

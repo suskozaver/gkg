@@ -16,22 +16,24 @@ Watch (JSON):
     POST /api/watch/pair           a 6-digit code (3 minutes) and a secret
     POST /api/watch/status         { secret }: waiting, or linked (its token, once); 404 when gone
     GET  /api/watch/lists?rev=     Bearer: the lists, or { rev, same: true } when nothing changed
-    POST /api/watch/changes        Bearer, { changes: [...] }: tick / add, then the lists
+    POST /api/watch/changes        Bearer, { changes: [...] }: ticks (only in the lists it was given), then the lists
     GET  /api/health               { ok, app: "gkg", version }; nothing about data
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import secrets
+import threading
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import quote, unquote, urlparse
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi import Body, FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -45,6 +47,19 @@ HERE = Path(__file__).parent
 VERSION = (HERE.parent / "VERSION").read_text().strip() if (HERE.parent / "VERSION").exists() else "0.0.0"
 log = logging.getLogger("gkg")
 
+# The biggest request body taken (the watch's changes are a few kilobytes at most).
+MAX_BODY = 64 * 1024
+# Placeholders from .env.example and anything this short would make a session cookie forgeable.
+WEAK_SECRETS = {"replace-me", "changeme", "secret"}
+DEFAULT_PROXIES = "127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
+HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'none'; "
+                               "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
+
 
 @dataclass
 class Config:
@@ -53,6 +68,8 @@ class Config:
     session_secret: str = ""
     data_key: str = ""
     sync_seconds: int = 120
+    # Peers allowed to say who the client is (X-Real-IP): the reverse proxy in front.
+    trusted_proxies: str = DEFAULT_PROXIES
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -62,6 +79,7 @@ class Config:
             session_secret=os.environ.get("GKG_SESSION_SECRET", ""),
             data_key=os.environ.get("GKG_DATA_KEY", ""),
             sync_seconds=int(os.environ.get("GKG_SYNC_SECONDS", "120") or 120),
+            trusted_proxies=os.environ.get("GKG_TRUSTED_PROXIES", DEFAULT_PROXIES),
         )
 
 
@@ -78,6 +96,11 @@ class State:
     login_lock: LoginLock = field(default_factory=LoginLock)
     pair_limit: Window = field(default_factory=lambda: Window(30, 3600))
     status_limit: Window = field(default_factory=lambda: Window(120, 60))
+    watch_limit: Window = field(default_factory=lambda: Window(60, 60))
+    bad_token_limit: Window = field(default_factory=lambda: Window(30, 60))
+    password_lock: LoginLock = field(default_factory=LoginLock)
+    # Pairings and watches.json are read and written from several request threads.
+    lock: threading.RLock = field(default_factory=threading.RLock)
 
 
 def now_ms() -> int:
@@ -86,8 +109,15 @@ def now_ms() -> int:
 
 def create_app(config: Config | None = None, keep: KeepService | None = None, start_sync: bool = True) -> FastAPI:
     config = config or Config.from_env()
+    if config.session_secret and (len(config.session_secret) < 32 or config.session_secret.lower() in WEAK_SECRETS):
+        raise SystemExit("GKG_SESSION_SECRET is a placeholder or too short (at least 32 characters): anyone could forge a sign-in. "
+                         "Make one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
     store = Store(config.data_dir)
-    vault = Vault(config.data_key or None)
+    try:
+        vault = Vault(config.data_key or None)
+    except Exception as e:  # noqa: BLE001
+        raise SystemExit(f"{e} Make one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"") from e
+    proxies = [ipaddress.ip_network(n.strip(), strict=False) for n in config.trusted_proxies.split(",") if n.strip()]
     keep = keep or KeepService(store, vault, interval=config.sync_seconds)
     secret = config.session_secret or secrets.token_hex(32)
     st = State(config=config, store=store, keep=keep, secret=secret)
@@ -114,6 +144,20 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.gkg = st
+
+    @app.middleware("http")
+    async def guard(req: Request, call_next):
+        # Big bodies are refused before they are read; a body without a length is not taken.
+        length = req.headers.get("content-length")
+        if req.method in ("POST", "PUT", "PATCH"):
+            if length is None and req.headers.get("transfer-encoding"):
+                return PlainTextResponse("Length required.", status_code=411)
+            if length is not None and (not length.isdigit() or int(length) > MAX_BODY):
+                return PlainTextResponse("Too large.", status_code=413)
+        resp = await call_next(req)
+        for k, v in HEADERS.items():
+            resp.headers.setdefault(k, v)
+        return resp
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters["ago"] = ago
@@ -129,16 +173,37 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
         return auth.read_session(st.secret, owner(), req.cookies.get(auth.COOKIE))
 
     def client_ip(req: Request) -> str:
-        return req.headers.get("x-real-ip") or (req.client.host if req.client else "?")
+        """The client's address: X-Real-IP only when the request comes from a trusted proxy."""
+        peer = req.client.host if req.client else ""
+        try:
+            trusted = any(ipaddress.ip_address(peer) in n for n in proxies)
+        except ValueError:
+            trusted = False
+        real = (req.headers.get("x-real-ip") or "").strip()
+        if trusted and real:
+            try:
+                return str(ipaddress.ip_address(real))
+            except ValueError:
+                pass
+        return peer or "?"
 
     def same_origin(req: Request) -> bool:
-        """A form post must come from this site (SameSite=Lax does most of it; this is the belt)."""
-        o = req.headers.get("origin")
-        if not o or o == "null":
-            return True
-        allowed = {urlparse(config.origin).netloc} if config.origin else set()
-        allowed.add(req.headers.get("host", ""))
-        return urlparse(o).netloc in allowed
+        """A form post must say it comes from this site: Origin, or Referer when a browser leaves Origin out."""
+        src = req.headers.get("origin") or ""
+        if not src or src == "null":
+            src = req.headers.get("referer") or ""
+        if not src:
+            return False
+        want = urlparse(config.origin).netloc if config.origin else req.headers.get("host", "")
+        return bool(want) and urlparse(src).netloc == want
+
+    def safe_next(nxt: str) -> str:
+        """Where to go after signing in: a path on this site, nothing else."""
+        ok = nxt.startswith("/") and not nxt.startswith("//") and "\\" not in nxt and len(nxt) < 200 and all(ord(c) > 32 for c in nxt)
+        return nxt if ok else "/"
+
+    def token_ok(given: str) -> bool:
+        return bool(st.setup_token) and secrets.compare_digest(given.encode("utf-8"), (st.setup_token or "").encode("utf-8"))
 
     def page(req: Request, name: str, **ctx) -> HTMLResponse:
         flash = unquote(req.cookies.get("gkg_flash", ""))
@@ -157,11 +222,12 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
         return RedirectResponse(f"/login?next={quote(req.url.path)}", status_code=303)
 
     def watches_file() -> dict:
-        raw = store.read("watches.json")
-        file = pairing.expire(raw, now_ms())
-        if raw is not None and file != pairing.normalize(raw):
-            store.write("watches.json", file)
-        return file
+        with st.lock:
+            raw = store.read("watches.json")
+            file = pairing.expire(raw, now_ms())
+            if raw is not None and file != pairing.normalize(raw):
+                store.write("watches.json", file)
+            return file
 
     def settings() -> dict:
         return view.clean_settings(store.read("settings.json"))
@@ -181,13 +247,13 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
 
     @app.get("/setup", response_class=HTMLResponse)
     def setup_page(req: Request, token: str = ""):
-        if owner() or not st.setup_token or not secrets.compare_digest(token, st.setup_token):
+        if owner() or not token_ok(token):
             return RedirectResponse("/login", status_code=303)
         return page(req, "setup.html", token=token)
 
     @app.post("/setup")
     def setup(req: Request, token: str = Form(""), username: str = Form(""), password: str = Form(""), password2: str = Form("")):
-        if not same_origin(req) or owner() or not st.setup_token or not secrets.compare_digest(token, st.setup_token):
+        if not same_origin(req) or owner() or not token_ok(token):
             return RedirectResponse("/login", status_code=303)
         if password != password2:
             return back(f"/setup?token={quote(token)}", "The two passwords are not the same.", False)
@@ -205,11 +271,11 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
     def login_page(req: Request, next: str = "/"):
         if who(req):
             return RedirectResponse("/", status_code=303)
-        return page(req, "login.html", next=next if next.startswith("/") and not next.startswith("//") else "/", setup=bool(st.setup_token))
+        return page(req, "login.html", next=safe_next(next), setup=bool(st.setup_token))
 
     @app.post("/login")
     def login(req: Request, username: str = Form(""), password: str = Form(""), next: str = Form("/")):
-        nxt = next if next.startswith("/") and not next.startswith("//") else "/"
+        nxt = safe_next(next)
         if not same_origin(req):
             return back("/login", "Sign in from this site.", False)
         ip = client_ip(req)
@@ -227,6 +293,8 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
 
     @app.post("/logout")
     def logout(req: Request):
+        if not same_origin(req):
+            return RedirectResponse("/", status_code=303)
         r = RedirectResponse("/login", status_code=303)
         r.delete_cookie(auth.COOKIE, path="/")
         return r
@@ -308,7 +376,11 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
         if not u or not same_origin(req):
             return to_login(req)
         o = owner()
+        wait = st.password_lock.blocked(client_ip(req))
+        if wait:
+            return back("/account", f"Too many wrong passwords. Try again in {max(1, wait // 60)} min.", False)
         if not auth.check_password(o, u, current):
+            st.password_lock.failed(client_ip(req))
             return back("/account", "The current password is wrong.", False)
         if password != password2:
             return back("/account", "The two new passwords are not the same.", False)
@@ -336,30 +408,35 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
             return back("/", f"Too many wrong codes: linking is locked for {max(1, gate['retryAfter'] // 3600)} h.", False)
         if g["paused"]:
             return back("/", "Too many wrong codes from everyone: linking is paused for an hour.", False)
-        res = pairing.claim(st.pairings, watches_file(), code=code, user=u, now=now)
+        with st.lock:
+            res = pairing.claim(st.pairings, watches_file(), code=code, user=u, now=now)
+            if "file" in res:
+                store.write("watches.json", res["file"])
         if "error" in res:
             st.link_entry = pairing.link_failed(st.link_entry, now)
             st.link_global.append(now)
             left = st.link_entry.get("left")
             return back("/", res["error"] + (f" ({left} tries left today.)" if left else " Linking is locked for 24 h."), False)
-        store.write("watches.json", res["file"])
         return back("/", "Watch linked. It shows your lists in a few seconds.")
 
     @app.post("/watches/{watch_id}/rename")
     def watch_rename(req: Request, watch_id: str, name: str = Form("")):
         if not who(req) or not same_origin(req):
             return to_login(req)
-        res = pairing.rename(watches_file(), watch_id, name)
+        with st.lock:
+            res = pairing.rename(watches_file(), watch_id, name)
+            if "file" in res:
+                store.write("watches.json", res["file"])
         if "error" in res:
             return back("/", res["error"], False)
-        store.write("watches.json", res["file"])
         return back("/", "Renamed.")
 
     @app.post("/watches/{watch_id}/unlink")
     def watch_unlink(req: Request, watch_id: str):
         if not who(req) or not same_origin(req):
             return to_login(req)
-        store.write("watches.json", pairing.unlink(watches_file(), watch_id))
+        with st.lock:
+            store.write("watches.json", pairing.unlink(watches_file(), watch_id))
         return back("/", "Watch unlinked. It asks for a new code the next time it syncs.")
 
     # ── The watch ──────────────────────────────────────────────────────────
@@ -368,69 +445,87 @@ def create_app(config: Config | None = None, keep: KeepService | None = None, st
     def watch_pair(req: Request):
         if not st.pair_limit.hit(client_ip(req)):
             return JSONResponse({"error": "Too many codes."}, status_code=429)
-        p = pairing.new_pairing(st.pairings, now_ms())
+        with st.lock:
+            p = pairing.new_pairing(st.pairings, now_ms())
         if p is None:
             return JSONResponse({"error": "Too many codes."}, status_code=429)
         return p
 
     @app.post("/api/watch/status")
-    async def watch_status(req: Request):
+    def watch_status(req: Request, body: dict = Body(default_factory=dict)):
         if not st.status_limit.hit(client_ip(req)):
             return JSONResponse({"error": "Slow down."}, status_code=429)
-        body = await json_body(req)
-        s = pairing.status(st.pairings, str(body.get("secret") or ""), now_ms())
+        with st.lock:
+            s = pairing.status(st.pairings, str(body.get("secret") or "")[:200], now_ms())
         if s is None:
             return JSONResponse({"error": "No such pairing."}, status_code=404)
-        return s
+        # The watch needs only its token; the account's name stays on the server.
+        return {k: v for k, v in s.items() if k != "username"}
 
     def the_watch(req: Request) -> dict | None:
         h = req.headers.get("authorization", "")
-        if not h.lower().startswith("bearer "):
+        w = None
+        if h.lower().startswith("bearer "):
+            w = pairing.watch_of(watches_file(), h[7:].strip()[:200])
+        if w is None:
+            st.bad_token_limit.hit(client_ip(req))
             return None
-        file = watches_file()
-        w = pairing.watch_of(file, h[7:].strip())
-        if w and now_ms() - w["lastSeenAt"] > 10 * 60_000:
-            store.write("watches.json", pairing.seen(file, w["id"], now_ms()))
+        if now_ms() - w["lastSeenAt"] > 10 * 60_000:
+            with st.lock:
+                store.write("watches.json", pairing.seen(watches_file(), w["id"], now_ms()))
         return w
+
+    def bad_tokens(req: Request) -> bool:
+        """Too many wrong tokens from this address lately: stop reading files for it for a while."""
+        return st.bad_token_limit.full(client_ip(req))
 
     def unauthorized() -> JSONResponse:
         return JSONResponse({"error": "Not linked."}, status_code=401)
 
+    def for_watch(v: dict) -> dict:
+        """What the watch is sent: the lists, nothing about the account."""
+        return {"rev": v["rev"], "syncedAt": v["syncedAt"], "lists": v["lists"], "keep": keep.state}
+
     @app.get("/api/watch/lists")
     def watch_lists(req: Request, rev: str = ""):
-        if not the_watch(req):
+        if bad_tokens(req):
+            return JSONResponse({"error": "Slow down."}, status_code=429)
+        w = the_watch(req)
+        if not w:
             return unauthorized()
+        if not st.watch_limit.hit(w["id"]):
+            return JSONResponse({"error": "Slow down."}, status_code=429)
         keep.fresh(30)
         v = current_view()
         if rev and rev == v["rev"]:
             return {"rev": v["rev"], "same": True, "syncedAt": v["syncedAt"], "keep": keep.state}
-        return {**v, "username": (owner() or {}).get("username", ""), "keep": keep.state}
+        return for_watch(v)
 
     @app.post("/api/watch/changes")
-    async def watch_changes(req: Request):
-        if not the_watch(req):
+    def watch_changes(req: Request, body: dict = Body(default_factory=dict)):
+        # A plain def: applying syncs with Google, which blocks, so it runs in the thread pool.
+        if bad_tokens(req):
+            return JSONResponse({"error": "Slow down."}, status_code=429)
+        w = the_watch(req)
+        if not w:
             return unauthorized()
-        body = await json_body(req)
-        changes = view.clean_changes(body.get("changes"))
-        result = {"applied": 0, "skipped": 0}
+        if not st.watch_limit.hit(w["id"]):
+            return JSONResponse({"error": "Slow down."}, status_code=429)
+        asked = view.clean_changes(body.get("changes"))
+        # Only the lists and items the watch was given: a watch token opens nothing else in Keep.
+        changes = view.allowed_changes(asked, current_view())
+        result = {"applied": 0, "skipped": len(asked) - len(changes)}
         if changes:
             try:
-                result = keep.apply(changes)
+                done = keep.apply(changes)
+                result = {"applied": done["applied"], "skipped": result["skipped"] + done["skipped"]}
             except NotConnected:
                 return JSONResponse({"error": "Keep is not connected."}, status_code=503)
             except KeepError as e:
                 return JSONResponse({"error": str(e)}, status_code=503)
-        return {**current_view(), **result, "username": (owner() or {}).get("username", ""), "keep": keep.state}
+        return {**for_watch(current_view()), **result}
 
     return app
-
-
-async def json_body(req: Request) -> dict:
-    try:
-        body = await req.json()
-    except Exception:  # noqa: BLE001
-        return {}
-    return body if isinstance(body, dict) else {}
 
 
 def ago(t) -> str:

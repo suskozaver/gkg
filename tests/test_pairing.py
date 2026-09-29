@@ -8,11 +8,11 @@ def test_code_claim_status_once():
     n = p.new_pairing(pairings, T0)
     assert len(n["code"]) == 6 and n["expiresIn"] == 180
     assert p.status(pairings, n["secret"], T0 + 1000)["status"] == "waiting"
-    res = p.claim(pairings, None, code=n["code"][:3] + " " + n["code"][3:], user="susko", now=T0 + 2000)
+    res = p.claim(pairings, None, code=n["code"][:3] + " " + n["code"][3:], user="owner", now=T0 + 2000)
     w = res["file"]["watches"][0]
     assert w["id"] == res["watchId"] and "token" not in w
     s = p.status(pairings, n["secret"], T0 + 3000)
-    assert s["status"] == "linked" and s["username"] == "susko"
+    assert s["status"] == "linked" and s["username"] == "owner"
     assert p.watch_of(res["file"], s["token"])["id"] == w["id"]
     # The token is handed out once.
     assert p.status(pairings, n["secret"], T0 + 4000) is None

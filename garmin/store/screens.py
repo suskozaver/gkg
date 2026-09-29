@@ -34,7 +34,7 @@ SCREENS = {
   <div class="c hd" style="top:42px"><b>Shopping</b><span>3 of 5 open</span></div>
   <div class="rows" style="top:124px;left:48px;right:48px">{row("Bread",on=True)}{row("Apples")}{row("Coffee")}{row("Milk",done=True)}</div>""",
  "screen-2-lists": """
-  <div class="c hd" style="top:42px"><b>GKG</b><span>3 lists · susko</span></div>
+  <div class="c hd" style="top:42px"><b>GKG</b><span>3 lists</span></div>
   <div class="rows" style="top:124px;left:40px;right:40px">
    <div class="lrow on"><b>Shopping</b><span>Pinned · 3 open</span></div>
    <div class="lrow" style="margin:0 10px"><b>Hike gear</b><span>7 open</span></div>
@@ -44,7 +44,7 @@ SCREENS = {
   <div class="logo" style="top:80px;width:68px;height:68px;font-size:12px"></div>
   <div class="c" style="top:132px;font-size:30px;font-weight:700">Link this watch</div>
   <div class="c" style="top:180px;font-size:88px;font-weight:700;letter-spacing:2px">482 913</div>
-  <div class="c" style="top:288px;font-size:28px;font-weight:700;color:#9e9e9e">gkg.wtf.si › Home</div>
+  <div class="c" style="top:288px;font-size:28px;font-weight:700;color:#9e9e9e">gkg.example.com › Home</div>
   <div class="c" style="top:328px;font-size:28px;font-weight:700;color:#6b6b6b">2:14</div>""",
 }
 with sync_playwright() as p:

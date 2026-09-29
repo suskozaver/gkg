@@ -63,12 +63,13 @@ def env(tmp_path):
     store = Store(tmp_path)
     keep = KeepService(store, Vault(cfg.data_key), client_factory=FakeClient, exchange=lambda e, t, d: "aas_et/exchanged")
     app = create_app(cfg, keep=keep, start_sync=False)
-    with TestClient(app) as c:
+    # A browser posting a form from the site says so in Origin.
+    with TestClient(app, headers={"origin": "http://testserver"}) as c:
         yield c, app.state.gkg, keep
 
 
 def setup_owner(c, st):
-    r = c.post("/setup", data={"token": st.setup_token, "username": "susko", "password": "a good password", "password2": "a good password"}, follow_redirects=False)
+    r = c.post("/setup", data={"token": st.setup_token, "username": "owner", "password": "a good password", "password2": "a good password"}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/keep"
     return r
 
@@ -83,9 +84,9 @@ def test_setup_login_and_pages(env):
         assert c.get(path).status_code == 200, path
     c.post("/logout")
     c.cookies.clear()
-    r = c.post("/login", data={"username": "susko", "password": "nope nope nope"}, follow_redirects=False)
+    r = c.post("/login", data={"username": "owner", "password": "nope nope nope"}, follow_redirects=False)
     assert r.headers["location"].startswith("/login")
-    r = c.post("/login", data={"username": "susko", "password": "a good password", "next": "/settings"}, follow_redirects=False)
+    r = c.post("/login", data={"username": "owner", "password": "a good password", "next": "/settings"}, follow_redirects=False)
     assert r.headers["location"] == "/settings" and "gkg_session" in r.cookies
 
 
@@ -115,7 +116,7 @@ def pair(c):
     r = c.post("/watches/link", data={"code": p["code"]}, follow_redirects=False)
     assert r.status_code == 303
     s = c.post("/api/watch/status", json={"secret": p["secret"]}).json()
-    assert s["status"] == "linked" and s["username"] == "susko"
+    assert s["status"] == "linked" and "username" not in s
     assert c.post("/api/watch/status", json={"secret": p["secret"]}).status_code == 404
     return {"authorization": f"Bearer {s['token']}"}
 
@@ -128,7 +129,8 @@ def test_watch_flow(env):
     assert c.get("/api/watch/lists").status_code == 401
     assert c.get("/api/watch/lists", headers={"authorization": "Bearer nope"}).status_code == 401
     d = c.get("/api/watch/lists", headers=h).json()
-    assert d["lists"][0]["title"] == "Trgovina" and d["username"] == "susko" and d["keep"] == "ok"
+    assert d["lists"][0]["title"] == "Trgovina" and d["keep"] == "ok"
+    assert "username" not in d and "templates" not in d
     assert c.get(f"/api/watch/lists?rev={d['rev']}", headers=h).json()["same"] is True
 
     body = {"changes": [{"op": "check", "list": "L1", "item": "i1", "done": True}, {"op": "add", "list": "L1", "text": "Jajca"},
@@ -172,3 +174,75 @@ def test_settings_saved(env):
 def test_health_says_nothing(env):
     c, st, keep = env
     assert c.get("/api/health").json().keys() == {"ok", "app", "version"}
+
+
+def test_security_headers_and_body_limit(env):
+    c, st, keep = env
+    r = c.get("/login")
+    assert r.headers["x-frame-options"] == "DENY" and "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert r.headers["x-content-type-options"] == "nosniff"
+    big = c.post("/api/watch/status", content=b"{" + b" " * (70 * 1024) + b"}", headers={"content-type": "application/json"})
+    assert big.status_code == 413
+
+
+def test_origin_required_for_forms(env):
+    c, st, keep = env
+    setup_owner(c, st)
+    for h in ({"origin": "null"}, {"origin": "https://evil.example"}, {"origin": ""}):
+        r = c.post("/keep/disconnect", headers=h, follow_redirects=False)
+        assert r.headers["location"].startswith("/login"), h
+    # Referer is enough when Origin is left out.
+    r = c.post("/keep/sync", headers={"origin": "", "referer": "http://testserver/"}, follow_redirects=False)
+    assert r.headers["location"] == "/keep"
+
+
+def test_next_stays_on_site(env):
+    c, st, keep = env
+    setup_owner(c, st)
+    c.cookies.clear()
+    for bad in ("//evil.com", "/\\evil.com", "/\tevil", "https://evil.com", "/ok\n"):
+        r = c.post("/login", data={"username": "owner", "password": "a good password", "next": bad}, follow_redirects=False)
+        assert r.headers["location"] == "/", bad
+        c.cookies.clear()
+
+
+def test_watch_changes_only_in_its_lists(env):
+    c, st, keep = env
+    setup_owner(c, st)
+    c.post("/keep/connect", data={"email": "a@gmail.com", "token": "aas_et/direct"})
+    keep._client.lists["L2"] = {"title": "Secret", "labels": [], "items": {"s1": ["Hidden", False]}}
+    keep.sync_now()
+    c.post("/settings", data={"labels": ["garmin"]})
+    h = pair(c)
+    d = c.post("/api/watch/changes", headers=h, json={"changes": [
+        {"op": "check", "list": "L2", "item": "s1", "done": True},
+        {"op": "add", "list": "L2", "text": "injected"},
+        {"op": "check", "list": "L1", "item": "i1", "done": True}]}).json()
+    assert d["applied"] == 1 and d["skipped"] == 2
+    assert keep._client.lists["L2"]["items"] == {"s1": ["Hidden", False]}
+    assert [l["id"] for l in d["lists"]] == ["L1"]
+
+
+def test_real_ip_only_from_a_trusted_proxy(tmp_path):
+    from app.limits import LoginLock
+    cfg = Config(data_dir=str(tmp_path), origin="http://testserver", session_secret="s" * 64,
+                 data_key=Fernet.generate_key().decode(), trusted_proxies="10.0.0.0/8")
+    app = create_app(cfg, keep=KeepService(Store(tmp_path), Vault(cfg.data_key), client_factory=FakeClient), start_sync=False)
+    st = app.state.gkg
+    with TestClient(app, headers={"origin": "http://testserver"}) as c:
+        # testclient is not a trusted proxy: the header is ignored, the lock falls on the peer.
+        for i in range(5):
+            c.post("/login", data={"username": "x", "password": "wrong password"}, headers={"x-real-ip": f"1.2.3.{i}"})
+        assert st.login_lock.blocked("testclient") > 0
+
+
+def test_weak_session_secret_refused(tmp_path):
+    with pytest.raises(SystemExit):
+        create_app(Config(data_dir=str(tmp_path), session_secret="replace-me"), start_sync=False)
+    with pytest.raises(SystemExit):
+        create_app(Config(data_dir=str(tmp_path), session_secret="s" * 64, data_key="replace-me"), start_sync=False)
+
+
+def test_setup_token_odd_characters(env):
+    c, st, keep = env
+    assert c.get("/setup?token=%C3%A9", follow_redirects=False).status_code == 303

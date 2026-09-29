@@ -1,4 +1,4 @@
-// Talking to the GKG server (Gkg.base), through the phone. One request at a time: ticks
+// Talking to the GKG server the watch was linked with (Gkg.linkedTo), through the phone. One request at a time: ticks
 // waiting on the watch go first (the answer is the fresh lists), otherwise
 // the lists, with the rev the watch has so an unchanged answer is tiny.
 
@@ -47,14 +47,14 @@ class Server {
         var box = Gkg.outbox();
         if (box.size() > 0) {
             sending = box.size();
-            Communications.makeWebRequest(Gkg.base() + "/api/watch/changes", { "changes" => box }, {
+            Communications.makeWebRequest(Gkg.linkedTo() + "/api/watch/changes", { "changes" => box }, {
                 :method => Communications.HTTP_REQUEST_METHOD_POST,
                 :headers => authHeaders(true),
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
             }, method(:onChanges));
             return;
         }
-        Communications.makeWebRequest(Gkg.base() + "/api/watch/lists", { "rev" => Gkg.rev() }, {
+        Communications.makeWebRequest(Gkg.linkedTo() + "/api/watch/lists", { "rev" => Gkg.rev() }, {
             :method => Communications.HTTP_REQUEST_METHOD_GET,
             :headers => authHeaders(false),
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
@@ -82,9 +82,6 @@ class Server {
 
     function onLists(code as Number, data as Dictionary or String or Null) as Void {
         if (code == 200 && data instanceof Dictionary) {
-            if (data["username"] != null) {
-                Storage.setValue("username", Gkg.str(data["username"]));
-            }
             if (data["lists"] instanceof Array) {
                 take(data);
             }

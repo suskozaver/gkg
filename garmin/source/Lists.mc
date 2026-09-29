@@ -233,8 +233,7 @@ class ListsView extends WatchUi.View {
             }
             Gkg.text(dc, c, ry + 20, Gkg.cond(24), sub, on ? Gkg.ACCENT : Gkg.DIM, Graphics.TEXT_JUSTIFY_CENTER);
         }
-        var who = Gkg.username();
-        Rows.header(dc, "GKG", Rows.sub(list.size() + " lists" + (who.equals("") ? "" : " · " + who)), getApp().server.trouble() ? Gkg.DIM : Gkg.GREY);
+        Rows.header(dc, "GKG", Rows.sub(list.size() == 1 ? "1 list" : list.size() + " lists"), getApp().server.trouble() ? Gkg.DIM : Gkg.GREY);
         moving = Marquee.active;
     }
 }

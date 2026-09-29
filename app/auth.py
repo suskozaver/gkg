@@ -1,5 +1,5 @@
 """
-The one account (the owner) and its sessions, the Eat Train Feel way:
+The one account (the owner) and its sessions:
 
 - No sign-up. On first start, with no owner yet, the server prints a setup
   link with a token that changes on every restart and is spent once the
@@ -19,6 +19,7 @@ import hmac
 import json
 import re
 import secrets
+import threading
 import time
 
 SESSION_DAYS = 30
@@ -27,8 +28,13 @@ USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{1,31}$")
 MIN_PASSWORD = 10
 
 
+# scrypt takes 32 MB and a tenth of a second: two at a time, so a burst of logins cannot eat the memory.
+_SCRYPT = threading.BoundedSemaphore(2)
+
+
 def hash_password(password: str, salt: bytes) -> str:
-    return hashlib.scrypt(password.encode("utf-8"), salt=salt, n=2**15, r=8, p=1, maxmem=64 * 1024 * 1024, dklen=64).hex()
+    with _SCRYPT:
+        return hashlib.scrypt(password.encode("utf-8"), salt=salt, n=2**15, r=8, p=1, maxmem=64 * 1024 * 1024, dklen=64).hex()
 
 
 def make_owner(username: str, password: str) -> dict:
