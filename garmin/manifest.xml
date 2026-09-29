@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
     <!-- GKG, a beta app in the Connect IQ store. Its own id: not Eat Train Feel's. -->
-    <iq:application id="9748947a3bcc4ab1902578b82c0fba02" type="watch-app" name="@Strings.AppName" entry="GkgApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="3.3.0">
+    <iq:application id="9748947a3bcc4ab1902578b82c0fba02" type="watch-app" name="@Strings.AppName" entry="GkgApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="3.3.0" version="1.0.4">
         <iq:products>
             <!-- Eat Train Feel's 74 round watches with buttons: AMOLED first, then MIP down to API 3.3.
                  One layout, drawn for 454 and scaled (Gkg.fit). Out, as in ETF: 128 KB watches,
