@@ -76,8 +76,9 @@ Updating: `git pull && docker compose up -d --build`. Backing up: the Docker vol
 ## The watch
 
 1. Install **GKG** from the Connect IQ store.
-2. In **Garmin Connect** (or the Connect IQ app) › GKG › **Settings**, set **Server** to
-   your server's address, e.g. `https://gkg.example.com`.
+2. Open GKG's settings on the phone: in the **Connect IQ** app, My Device › My Apps ›
+   GKG › **Settings**; or in **Garmin Connect**, your watch › Connect IQ Apps › GKG ›
+   **Settings**. Set **Server** to your server's address, e.g. `https://gkg.example.com`.
 3. Open GKG on the watch. It checks that a GKG server answers there and shows a
    six-digit code; type it on your server's **Home › Link a watch** within three minutes.
 
