@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Create the account{% endblock %}
+{% block main %}
+<section class="card narrow">
+  <h1>Create the account</h1>
+  <p class="muted">The only account on this server. There is no sign-up after this.</p>
+  <form method="post" action="/setup" class="stack">
+    <input type="hidden" name="token" value="{{ token }}">
+    <label>Username <input name="username" autocomplete="username" autocapitalize="none" autofocus required pattern="[a-z0-9][a-z0-9._\-]{1,31}"></label>
+    <label>Password <small>at least 10 characters</small> <input name="password" type="password" autocomplete="new-password" required minlength="10"></label>
+    <label>Password again <input name="password2" type="password" autocomplete="new-password" required minlength="10"></label>
+    <button class="primary">Create</button>
+  </form>
+</section>
+{% endblock %}

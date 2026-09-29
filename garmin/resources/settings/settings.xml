@@ -1,0 +1,5 @@
+<settings>
+    <setting propertyKey="@Properties.server" title="@Strings.ServerTitle" prompt="@Strings.ServerPrompt">
+        <settingConfig type="alphaNumeric" />
+    </setting>
+</settings>

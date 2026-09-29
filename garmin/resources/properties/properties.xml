@@ -1,0 +1,4 @@
+<properties>
+    <!-- The GKG server this watch talks to. Set in Garmin Connect › GKG › Settings. -->
+    <property id="server" type="string">https://gkg.wtf.si</property>
+</properties>

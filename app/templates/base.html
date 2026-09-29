@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>{% block title %}GKG{% endblock %} · Keep on Garmin</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css?v={{ version }}">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="28" height="28"><span>GKG</span><small>Keep on Garmin</small></a>
+  {% if user %}
+  <nav>
+    <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Home</a>
+    <a href="/keep" {% if path == "/keep" %}aria-current="page"{% endif %}>Keep</a>
+    <a href="/settings" {% if path == "/settings" %}aria-current="page"{% endif %}>Watch</a>
+    <a href="/account" {% if path == "/account" %}aria-current="page"{% endif %}>Account</a>
+  </nav>
+  {% endif %}
+</header>
+<main>
+{% if flash %}<p class="flash {% if flash.startswith('!') %}bad{% endif %}" role="status">{{ flash[2:] }}</p>{% endif %}
+{% block main %}{% endblock %}
+</main>
+<footer>
+  GKG {{ version }}
+  {% if user %}· <form method="post" action="/logout" class="inline"><button class="link">Sign out {{ user }}</button></form>{% endif %}
+</footer>
+</body>
+</html>

@@ -1,0 +1,24 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+data/
+.transfer/
+.DS_Store
+
+# Deploy watcher (scripts/deploy-watcher.ps1)
+.deploy-request
+.deploy.log
+.deploy-history.log
+.deploy-status.json
+.push-request
+.push.log
+.push-status.json
+.garmin-build-request
+.garmin-build.log
+.garmin-build-status.json
+garmin/bin/
+
+# Maintainer notes for Claude, kept on the machine only (29. 9. 2026)
+CLAUDE.md

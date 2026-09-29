@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Account{% endblock %}
+{% block main %}
+<section class="card narrow">
+  <h1>Change password</h1>
+  <p class="muted">Every other browser is signed out. Linked watches stay linked.</p>
+  <form method="post" action="/account/password" class="stack">
+    <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+    <label>New password <small>at least 10 characters</small> <input name="password" type="password" autocomplete="new-password" required minlength="10"></label>
+    <label>New password again <input name="password2" type="password" autocomplete="new-password" required minlength="10"></label>
+    <button class="primary">Change</button>
+  </form>
+</section>
+{% endblock %}

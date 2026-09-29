@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block main %}
+<section class="card">
+  <div class="row between">
+    <h2>Keep</h2>
+    {% if keep.state == "ok" %}<span class="pill ok">Connected</span>
+    {% elif keep.state == "error" %}<span class="pill bad">Error</span>
+    {% elif keep.state == "starting" %}<span class="pill">Connecting…</span>
+    {% else %}<span class="pill">Not connected</span>{% endif %}
+  </div>
+  {% if keep.state == "off" %}
+    <p>Connect your Google account first.</p>
+    <a class="button primary" href="/keep">Connect Keep</a>
+  {% else %}
+    <p class="muted">{{ keep.email }} · {{ keep.notes }} note{{ '' if keep.notes == 1 else 's' }} · synced {{ keep.syncedAt|ago }}</p>
+    {% if keep.error %}<p class="bad-text">{{ keep.error }}</p>{% endif %}
+    <form method="post" action="/keep/sync"><button>Sync now</button></form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Link a watch</h2>
+  <p class="muted">Open GKG on the watch. It shows a six-digit code for three minutes; type it here.</p>
+  <form method="post" action="/watches/link" class="row">
+    <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="123 456" required class="code">
+    <button class="primary">Link</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Linked watches</h2>
+  {% if watches %}
+  <ul class="watches">
+    {% for w in watches %}
+    <li>
+      <form method="post" action="/watches/{{ w.id }}/rename" class="row grow">
+        <input name="name" value="{{ w.name or ('Watch ' ~ loop.index) }}" maxlength="30" aria-label="Name">
+        <button>Rename</button>
+      </form>
+      <p class="muted small">Linked {{ w.linkedAt|date }} · last seen {{ w.lastSeenAt|ago }}</p>
+      <form method="post" action="/watches/{{ w.id }}/unlink"><button class="danger">Unlink</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="muted small">A watch not heard from in 90 days is unlinked by itself.</p>
+  {% else %}
+  <p class="muted">None yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="row between">
+    <h2>What the watch shows</h2>
+    <a href="/settings">Change</a>
+  </div>
+  {% if not view.lists %}
+    <p class="muted">Nothing{% if keep.state == "ok" %}: no list matches the settings{% endif %}.</p>
+  {% endif %}
+  <div class="preview">
+  {% for l in view.lists %}
+    <article>
+      <h3>{% if l.pinned %}<span title="Pinned">📌</span> {% endif %}{{ l.title }} {% if l.kind == "list" %}<small>{{ l.open }} open</small>{% endif %}</h3>
+      {% if l.kind == "list" %}
+      <ul class="items">
+        {% for i in l["items"] %}<li class="{% if i.done %}done{% endif %} {% if i.sub %}sub{% endif %}">{{ i.text }}</li>{% endfor %}
+      </ul>
+      {% else %}
+      <p class="note">{{ l.text }}</p>
+      {% endif %}
+    </article>
+  {% endfor %}
+  </div>
+  {% if view.templates %}<p class="muted small">Quick items: {{ view.templates|join(", ") }}</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Keep{% endblock %}
+{% block main %}
+{% if keep.state != "off" %}
+<section class="card">
+  <h1>Keep</h1>
+  <p>Connected as <strong>{{ keep.email }}</strong> since {{ keep.connectedAt|date }}. Synced {{ keep.syncedAt|ago }}.</p>
+  {% if keep.error %}<p class="bad-text">{{ keep.error }}</p>{% endif %}
+  <div class="row">
+    <form method="post" action="/keep/sync"><button>Sync now</button></form>
+    <form method="post" action="/keep/disconnect"><button class="danger">Disconnect</button></form>
+  </div>
+  <p class="muted small">Disconnect deletes the master token and the cached notes from this server.</p>
+</section>
+{% endif %}
+
+<section class="card">
+  <h1>{% if keep.state == "off" %}Connect Keep{% else %}Connect again{% endif %}</h1>
+  {% if not vault_ready %}
+  <p class="bad-text">GKG_DATA_KEY is not set in <code>.env</code>, so the token could not be stored encrypted. Set it and restart the container first.</p>
+  {% endif %}
+  <p class="muted">Keep has no public API for personal accounts, so GKG signs in as an Android device would, with a <em>master token</em>. It is exchanged here from a short-lived cookie, stored only encrypted, and never shown again.</p>
+  <ol class="steps">
+    <li>Open <a href="https://accounts.google.com/EmbeddedSetup" target="_blank" rel="noopener">accounts.google.com/EmbeddedSetup</a> in a private window and sign in, 2-step verification included.</li>
+    <li>Click <strong>I agree</strong>. The page may keep spinning; that is fine.</li>
+    <li>Open DevTools (F12) › <strong>Application</strong> › Cookies › <code>https://accounts.google.com</code> and copy the value of <code>oauth_token</code> (it starts with <code>oauth2_4/</code>).</li>
+    <li>Paste it below within a few minutes. It works once.</li>
+  </ol>
+  <form method="post" action="/keep/connect" class="stack">
+    <label>Google account <input name="email" type="email" autocomplete="email" value="{{ keep.email }}" required></label>
+    <label>oauth_token <small>or a master token, aas_et/…</small> <input name="token" autocomplete="off" spellcheck="false" required></label>
+    <button class="primary" {% if not vault_ready %}disabled{% endif %}>Connect</button>
+  </form>
+  <p class="muted small">The master token opens the whole Google account, not only Keep. It does not expire by itself; to revoke it, remove the device from <a href="https://myaccount.google.com/device-activity" target="_blank" rel="noopener">your Google account's devices</a>.</p>
+</section>
+{% endblock %}
