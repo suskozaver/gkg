@@ -22,3 +22,5 @@ garmin/bin/
 
 # Maintainer notes for Claude, kept on the machine only (29. 9. 2026)
 CLAUDE.md
+# Maintainer tools for Windows (deploy watcher, simulator), kept on the machine only
+scripts/

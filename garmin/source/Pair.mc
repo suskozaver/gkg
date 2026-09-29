@@ -2,8 +2,7 @@
 // a GKG server, then asks it for a six-digit code, shows it with a ring that
 // runs out in three minutes, and asks every few seconds whether it was typed
 // on that server's Home page. When it was, the watch gets its token, once,
-// and remembers which server gave it. (Eat Train Feel's Pair.mc, in GKG's
-// colours.)
+// and remembers which server gave it.
 
 import Toybox.Application;
 import Toybox.Communications;
@@ -24,6 +23,8 @@ class PairView extends WatchUi.View {
     var waiting as Boolean = false;
     var timer as Timer.Timer?;
     var ticks as Number = 0;
+    /** The server this pairing is with, fixed when it starts. */
+    var server as String = "";
 
     function initialize() {
         View.initialize();
@@ -54,15 +55,16 @@ class PairView extends WatchUi.View {
             return;
         }
         state = :asking;
+        server = Gkg.base();
         WatchUi.requestUpdate();
-        Communications.makeWebRequest(Gkg.base() + "/api/health", null, {
+        Communications.makeWebRequest(server + "/api/health", null, {
             :method => Communications.HTTP_REQUEST_METHOD_GET,
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         }, method(:onHealth));
     }
 
     function onHealth(rc as Number, data as Dictionary or String or Null) as Void {
-        if (rc == 200 && data instanceof Dictionary && data["ok"] == true && data["version"] != null) {
+        if (rc == 200 && data instanceof Dictionary && data["ok"] == true && Gkg.str(data["app"]).equals("gkg")) {
             getCode();
             return;
         }
@@ -72,7 +74,7 @@ class PairView extends WatchUi.View {
     }
 
     function getCode() as Void {
-        Communications.makeWebRequest(Gkg.base() + "/api/watch/pair", {}, {
+        Communications.makeWebRequest(server + "/api/watch/pair", {}, {
             :method => Communications.HTTP_REQUEST_METHOD_POST,
             :headers => { "Content-Type" => Communications.REQUEST_CONTENT_TYPE_JSON },
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
@@ -108,7 +110,7 @@ class PairView extends WatchUi.View {
                 }
             } else if (ticks % 3 == 0 && !waiting) {
                 waiting = true;
-                Communications.makeWebRequest(Gkg.base() + "/api/watch/status", { "secret" => Gkg.str(secret) }, {
+                Communications.makeWebRequest(server + "/api/watch/status", { "secret" => Gkg.str(secret) }, {
                     :method => Communications.HTTP_REQUEST_METHOD_POST,
                     :headers => { "Content-Type" => Communications.REQUEST_CONTENT_TYPE_JSON },
                     :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
@@ -122,8 +124,7 @@ class PairView extends WatchUi.View {
         waiting = false;
         if (rc == 200 && data instanceof Dictionary && Gkg.str(data["status"]).equals("linked") && data["token"] != null) {
             Application.Storage.setValue("token", Gkg.str(data["token"]));
-            Application.Storage.setValue("server", Gkg.base());
-            Application.Storage.setValue("username", Gkg.str(data["username"]));
+            Application.Storage.setValue("server", server);
             Gkg.vibe(300);
             showHome();
             getApp().server.refresh();

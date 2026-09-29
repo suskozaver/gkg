@@ -51,14 +51,25 @@ docker compose logs gkg      # on the first start: the link to create your accou
 | `GKG_SESSION_SECRET` | signs the web sign-in; without it every restart signs you out |
 | `GKG_DATA_KEY` | the key the Keep token and the cached notes are encrypted with. **Keep a copy somewhere safe** (a password manager): without it the stored token cannot be read and Keep has to be connected again |
 | `GKG_SYNC_SECONDS` | how often the server syncs with Keep on its own (default 120) |
+| `GKG_BIND` | where port 8791 is published: `127.0.0.1` (default) or `0.0.0.0` |
+| `GKG_TRUSTED_PROXIES` | the proxy's addresses, whose `X-Real-IP` is believed (default: private networks) |
+| `TZ` | time zone for dates on the web pages (default UTC) |
 
-The container listens on port **8791**. With Caddy, for example:
+The container publishes port **8791** on `127.0.0.1` only (set `GKG_BIND=0.0.0.0` when
+the proxy runs elsewhere, and keep 8791 closed to the internet). With Caddy on the same
+machine, for example:
 
 ```
 gkg.example.com {
-	reverse_proxy localhost:8791
+	reverse_proxy localhost:8791 {
+		header_up X-Real-IP {remote_host}
+	}
 }
 ```
+
+The proxy must set `X-Real-IP` to the client's address (Nginx Proxy Manager does), and the
+server believes it only from the addresses in `GKG_TRUSTED_PROXIES` (private networks by
+default). The rate limits on sign-in and linking go by that address.
 
 Then, on your server's web pages:
 
@@ -97,17 +108,24 @@ to the server through the phone; without the phone they wait on the watch. More 
   the running container gets the token. **Disconnect** on the Keep page deletes both;
   to revoke the token itself, remove the device in your Google account's security
   settings.
-- **Account**: one, no sign-up. scrypt password, a session cookie signed with
-  `GKG_SESSION_SECRET` (HttpOnly, SameSite=Lax, Secure on https), 30 days. Changing
-  the password signs out every other browser. 5 wrong passwords in 15 minutes lock
-  sign-in from that address for 15 minutes.
-- **Linking a watch**: a code lives three minutes and binds only to the signed-in
-  account. 5 wrong codes in a day lock linking for 24 hours; more than 100 from
-  everyone in an hour pause it. The watch's token is 256 random bits and the server
-  keeps only its SHA-256. The token opens only the watch API. **Unlink** revokes it at
-  once; a watch not heard from in 90 days is unlinked by itself.
-- Form posts from another site are refused (an Origin check on top of SameSite).
-- `/api/health` says nothing about data.
+- **Account**: one, no sign-up. scrypt password (at most two computed at once), a
+  session cookie signed with `GKG_SESSION_SECRET` (HttpOnly, SameSite=Lax, Secure on
+  https), 30 days; the server refuses to start with a placeholder or short secret.
+  Changing the password signs out every other browser; linked watches stay linked
+  (unlink them on Home if a session may have been stolen). 5 wrong passwords in 15
+  minutes lock sign-in from that address for 15 minutes.
+- **Linking a watch**: a code lives three minutes and only the signed-in owner can use
+  it; 5 wrong codes in a day lock linking for 24 hours. Asking for codes is limited per
+  address. The watch's token is 256 random bits and the server keeps only its SHA-256.
+  At most 5 watches: linking a sixth unlinks the oldest.
+- **What a watch token opens**: only the watch API, and in it only the lists picked on
+  the Watch page: a tick for anything else is refused. **Unlink** revokes a token at
+  once; a watch not heard from in 90 days is unlinked by itself. The watch app sends the
+  token only to the server it was linked with, and only over https.
+- **Web**: every form post must carry this site's Origin (or Referer); responses carry a
+  strict Content-Security-Policy (no scripts), `X-Frame-Options: DENY`, `nosniff` and
+  `no-referrer`. Request bodies over 64 KB are refused. `/api/health` says nothing about
+  data.
 
 ## The watch API
 
@@ -117,13 +135,13 @@ All JSON. The token comes from linking and goes in `Authorization: Bearer …`.
 |---|---|
 | `GET /api/health` | `{ ok, app: "gkg", version }` |
 | `POST /api/watch/pair` | `{ code, secret, expiresIn }`: show the code, keep the secret |
-| `POST /api/watch/status` `{ secret }` | `{ status: "waiting" }`, or `{ status: "linked", token, username }` once; 404 when the code is gone (get a new one) |
-| `GET /api/watch/lists?rev=` | `{ rev, syncedAt, lists, templates, username, keep }`, or `{ rev, same: true }` when nothing changed since `rev` |
-| `POST /api/watch/changes` `{ changes }` | applies them, syncs with Keep once, answers like `lists` plus `{ applied, skipped }`; 503 when Keep could not be reached (send them again later) |
+| `POST /api/watch/status` `{ secret }` | `{ status: "waiting" }`, or `{ status: "linked", token }` once; 404 when the code is gone (get a new one) |
+| `GET /api/watch/lists?rev=` | `{ rev, syncedAt, lists, keep }`, or `{ rev, same: true }` when nothing changed since `rev` |
+| `POST /api/watch/changes` `{ changes }` | applies those that touch the lists it was given, syncs with Keep once, answers like `lists` plus `{ applied, skipped }`; 503 when Keep could not be reached (send them again later) |
 
 A list: `{ id, title, kind: "list", pinned, open, items: [{ id, text, done, sub? }] }`;
 a plain note (when turned on): `{ id, title, kind: "note", pinned, text }`.
-A change: `{ op: "check", list, item, done }` or `{ op: "add", list, text }`.
+A change: `{ op: "check", list, item, done }` (the server also takes `{ op: "add", list, text }`, which the watch does not send yet).
 Setting `done` is idempotent, so a change sent twice does no harm. Any call can answer
 401: the watch was unlinked, back to a code. When the watch asks for its lists and the
 server's last sync with Keep is older than 30 seconds, the server syncs first.
@@ -136,9 +154,8 @@ python -m pytest -q
 GKG_DATA_DIR=./data uvicorn app.main:create_app --factory --port 8791
 ```
 
-The watch app is in `garmin/` (Connect IQ, Monkey C; 74 round watches with buttons); build it with the Connect IQ SDK
-and your own developer key. `scripts/` holds the maintainer's deploy helpers for
-Windows (a watcher that pushes, deploys and builds the watch app on request).
+The watch app is in `garmin/` (Connect IQ, Monkey C; 74 round watches with buttons); build it
+with the Connect IQ SDK and your own developer key, see [garmin/README.md](garmin/README.md).
 
 ## License
 

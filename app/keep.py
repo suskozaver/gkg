@@ -179,11 +179,12 @@ class KeepService:
 
     def resume(self) -> None:
         """Sign in again with the stored token, from the cached state when there is one."""
-        meta = self.store.read("keep.json")
-        if not meta or not meta.get("token"):
-            self.state = "off"
-            return
         with self._lock:
+            # Read inside the lock, so a Disconnect in between cannot be undone.
+            meta = self.store.read("keep.json")
+            if not meta or not meta.get("token"):
+                self.state = "off"
+                return
             self.state = "starting"
             try:
                 token = self.vault.open(meta["token"])

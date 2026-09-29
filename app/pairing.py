@@ -1,6 +1,5 @@
 """
-Linking a watch: the device-code kind a TV uses (ported from Eat Train Feel's
-server/watch.mjs).
+Linking a watch: the device-code kind a TV uses.
 
 The watch asks for a pairing: a 6-digit code it shows for three minutes, and a
 secret it keeps. The owner types the code on the web, signed in, which binds
@@ -25,7 +24,7 @@ import secrets
 
 CODE_MS = 3 * 60_000
 MAX_WATCHES = 5
-MAX_PAIRINGS = 50
+MAX_PAIRINGS = 500
 # A watch not heard from for this long is unlinked by itself: lost, sold, forgotten.
 IDLE_MS = 90 * 24 * 3600_000
 # Wrong codes: this many in a day locks linking for a day.

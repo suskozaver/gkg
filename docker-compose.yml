@@ -15,9 +15,12 @@ services:
     image: gkg:local
     container_name: gkg
     ports:
-      - "8791:8791"
+      # Only on this machine by default, for a proxy running on it. A proxy elsewhere
+      # (or in another container that reaches the host by its address): GKG_BIND=0.0.0.0,
+      # and keep the port closed to the internet so nobody goes round the proxy.
+      - "${GKG_BIND:-127.0.0.1}:8791:8791"
     environment:
-      TZ: Europe/Ljubljana
+      TZ: ${TZ:-UTC}
       GKG_ORIGIN: ${GKG_ORIGIN:?Set GKG_ORIGIN in .env, e.g. https://gkg.example.com}
       # Set in .env. Without it every restart signs you out.
       GKG_SESSION_SECRET: ${GKG_SESSION_SECRET:-}
@@ -25,6 +28,8 @@ services:
       # Lose it and Keep has to be connected again; never put it in the repo.
       GKG_DATA_KEY: ${GKG_DATA_KEY:-}
       GKG_SYNC_SECONDS: ${GKG_SYNC_SECONDS:-120}
+      # Addresses of the proxy in front, whose X-Real-IP header is believed (default: private networks).
+      GKG_TRUSTED_PROXIES: ${GKG_TRUSTED_PROXIES:-127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7}
     volumes:
       - gkg_data:/data
     restart: unless-stopped

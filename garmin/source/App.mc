@@ -93,7 +93,7 @@ function showPairing() as Void {
 function openMenu() as Void {
     var m = new WatchUi.Menu2({ :title => "GKG" });
     m.addItem(new WatchUi.MenuItem("Sync now", getApp().server.line(), :sync, null));
-    m.addItem(new WatchUi.MenuItem("Unlink watch", Gkg.username().equals("") ? null : "Linked to " + Gkg.username(), :unlink, null));
+    m.addItem(new WatchUi.MenuItem("Unlink watch", "Linked to " + Gkg.host(), :unlink, null));
     WatchUi.pushView(m, new MenuDelegate(), WatchUi.SLIDE_UP);
 }
 

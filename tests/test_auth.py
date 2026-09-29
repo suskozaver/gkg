@@ -6,14 +6,14 @@ from app.vault import Vault, VaultError
 
 
 def test_owner_and_sessions():
-    o = auth.make_owner(" Susko ", "correct horse battery")
-    assert o["username"] == "susko"
-    assert auth.check_password(o, "susko", "correct horse battery")
-    assert not auth.check_password(o, "susko", "wrong password!")
+    o = auth.make_owner(" Owner ", "correct horse battery")
+    assert o["username"] == "owner"
+    assert auth.check_password(o, "owner", "correct horse battery")
+    assert not auth.check_password(o, "owner", "wrong password!")
     assert not auth.check_password(o, "other", "correct horse battery")
-    assert not auth.check_password(None, "susko", "x")
+    assert not auth.check_password(None, "owner", "x")
     s = auth.issue_session("secret", o, now=1000)
-    assert auth.read_session("secret", o, s, now=2000) == "susko"
+    assert auth.read_session("secret", o, s, now=2000) == "owner"
     assert auth.read_session("other", o, s, now=2000) is None
     assert auth.read_session("secret", o, s, now=1000 + auth.SESSION_DAYS * 86400 + 1) is None
     assert auth.read_session("secret", o, s[:-1] + ("0" if s[-1] != "0" else "1"), now=2000) is None
@@ -25,7 +25,7 @@ def test_owner_rules():
     with pytest.raises(ValueError):
         auth.make_owner("a", "long enough pw")
     with pytest.raises(ValueError):
-        auth.make_owner("susko", "short")
+        auth.make_owner("owner", "short")
 
 
 def test_vault():

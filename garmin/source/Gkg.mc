@@ -1,8 +1,8 @@
 // GKG on a Garmin watch: what every screen shares. Colours, fonts, drawing
-// (ported from Eat Train Feel's Etf.mc: every screen is drawn for 454x454 and
-// scaled), and what is kept on the watch:
+// (every screen is drawn for 454x454 and scaled), and what is kept on the
+// watch:
 //
-//   token, username   from linking
+//   token, server     from linking: the watch's token and the server it came from
 //   view              the last { rev, syncedAt, lists } from the server
 //   outbox            ticks not yet confirmed by the server, oldest first
 //
@@ -18,12 +18,6 @@ import Toybox.Math;
 import Toybox.System;
 
 module Gkg {
-    /**
-     * The server a watch linked before the setting existed (1.0.2 and older,
-     * the beta) was linked to. Not a default: the setting starts empty.
-     */
-    const OLD_SERVER = "https://gkg.wtf.si";
-
     const ACCENT = 0xF9B600;
     const WHITE = 0xFFFFFF;
     const GREY = 0x9E9E9E;
@@ -60,8 +54,9 @@ module Gkg {
     // ---- the server: a setting, from Garmin Connect on the phone
 
     /**
-     * The server as set, tidied: spaces and a trailing slash go, and a bare
-     * host name gets https:// in front of it. Empty when none is set.
+     * The server as set, tidied: spaces and a trailing slash go, a bare host
+     * name gets https:// in front of it, and http:// becomes https://, so the
+     * token never travels in the clear. Empty when none is set.
      */
     function base() as String {
         var v = null;
@@ -84,8 +79,11 @@ module Gkg {
         if (s.equals("")) {
             return "";
         }
-        if (s.find("://") == null) {
+        var scheme = s.find("://");
+        if (scheme == null) {
             s = "https://" + s;
+        } else if (!s.substring(0, scheme).toLower().equals("https")) {
+            s = "https" + s.substring(scheme, s.length());
         }
         return s;
     }
@@ -103,8 +101,7 @@ module Gkg {
 
     /** The server this watch's token came from. */
     function linkedTo() as String {
-        var v = Storage.getValue("server");
-        return v == null ? OLD_SERVER : str(v);
+        return str(Storage.getValue("server"));
     }
 
     /** Linked, but to another server than the one set now: the token is no good there. */
@@ -116,10 +113,6 @@ module Gkg {
 
     function token() as String? {
         return Storage.getValue("token") as String?;
-    }
-
-    function username() as String {
-        return str(Storage.getValue("username"));
     }
 
     /** The stored view, read once; Storage is only written. */
@@ -233,6 +226,7 @@ module Gkg {
     function forget() as Void {
         Storage.deleteValue("token");
         Storage.deleteValue("server");
+        Storage.deleteValue("username");
         Storage.deleteValue("view");
         Storage.deleteValue("outbox");
         cache = null;
@@ -416,7 +410,7 @@ module Gkg {
 }
 
 // Scrolling text: a line that does not fit moves slowly to its end and back,
-// with a pause at each end. Fonts never shrink for it. (From Eat Train Feel.)
+// with a pause at each end. Fonts never shrink for it.
 module Marquee {
     const SPEED = 55;
     const PAUSE = 1300;
