@@ -18,6 +18,12 @@
       echo build fr165   > .garmin-build-request   ->  garmin\bin\GKG-fr165.prg
       echo export        > .garmin-build-request   ->  garmin\bin\GKG.iq (store package)
 
+  The word "beta" anywhere builds the beta app instead of the public one:
+  manifest-beta.xml through monkey-beta.jungle, into a file with -beta in its
+  name. The two differ only in the app id (a beta app cannot be published).
+
+      echo export beta   > .garmin-build-request   ->  garmin\bin\GKG-beta.iq
+
   The key is only read here; it never leaves this machine and is never in the repo.
 
   Installed once as a logon task by scripts/install-deploy-watcher.ps1. A
@@ -73,6 +79,9 @@ while ($true) {
   if (Test-Path $GarminRequest) {
     $gWhat = ""
     try { $gWhat = ((Get-Content $GarminRequest -Raw -ErrorAction SilentlyContinue) + "").Trim().ToLower() } catch { $gWhat = "" }
+    $gBeta = ($gWhat -match '(^|\s)beta(\s|$)')
+    if ($gBeta) { $gWhat = ($gWhat -replace '(^|\s)beta(\s|$)', ' ').Trim() }
+    $gTag = $(if ($gBeta) { "-beta" } else { "" })
     $gExport = ($gWhat -eq "export")
     $gDevice = $GarminDevice
     if ($gWhat -match '^build\s+([A-Za-z0-9]{2,32})$') { $gDevice = $Matches[1] }
@@ -83,7 +92,7 @@ while ($true) {
     $gCode = 1
     $cfg = Join-Path $env:APPDATA "Garmin\ConnectIQ\current-sdk.cfg"
     $key = Get-ChildItem -Path $GarminKeys -Filter *.der -ErrorAction SilentlyContinue | Select-Object -First 1
-    $jungle = Join-Path $Repo "garmin\monkey.jungle"
+    $jungle = Join-Path $Repo $(if ($gBeta) { "garmin\monkey-beta.jungle" } else { "garmin\monkey.jungle" })
     if (-not (Test-Path $jungle)) {
       $gLines += "No watch app yet: $jungle is missing."
     } elseif (-not (Test-Path $cfg)) {
@@ -96,10 +105,10 @@ while ($true) {
       if (-not (Test-Path $monkeyc)) { $monkeyc = Join-Path $bin "monkeyc.bat" }
       New-Item -ItemType Directory -Force -Path (Join-Path $Repo "garmin\bin") | Out-Null
       if ($gExport) {
-        $out = Join-Path $Repo "garmin\bin\$GarminName.iq"
+        $out = Join-Path $Repo "garmin\bin\$GarminName$gTag.iq"
         $gOut = & cmd.exe /c "`"$monkeyc`" -e -r -f `"$jungle`" -y `"$($key.FullName)`" -o `"$out`" -w 2>&1"
       } else {
-        $name = $(if ($gDevice -eq $GarminDevice) { "$GarminName.prg" } else { "$GarminName-$gDevice.prg" })
+        $name = $(if ($gDevice -eq $GarminDevice) { "$GarminName$gTag.prg" } else { "$GarminName$gTag-$gDevice.prg" })
         $out = Join-Path $Repo "garmin\bin\$name"
         $gOut = & cmd.exe /c "`"$monkeyc`" -f `"$jungle`" -d $gDevice -y `"$($key.FullName)`" -o `"$out`" -w 2>&1"
       }
