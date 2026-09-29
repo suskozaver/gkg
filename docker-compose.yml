@@ -1,0 +1,33 @@
+# GKG — Google Keep on a Garmin watch
+#
+#   docker compose up -d --build        build and run, http://localhost:8791
+#   docker compose logs gkg             the owner setup link is printed here on first start
+#
+# Put HTTPS with a valid certificate in front of port 8791 (Caddy, Nginx Proxy
+# Manager, Traefik…): the watch cannot talk to the server without it.
+
+# Pinned, so the volume stays gkg_gkg_data even if the folder is renamed.
+name: gkg
+
+services:
+  gkg:
+    build: .
+    image: gkg:local
+    container_name: gkg
+    ports:
+      - "8791:8791"
+    environment:
+      TZ: Europe/Ljubljana
+      GKG_ORIGIN: ${GKG_ORIGIN:?Set GKG_ORIGIN in .env, e.g. https://gkg.example.com}
+      # Set in .env. Without it every restart signs you out.
+      GKG_SESSION_SECRET: ${GKG_SESSION_SECRET:-}
+      # Set in .env. The key the Keep master token and the cached notes are sealed with.
+      # Lose it and Keep has to be connected again; never put it in the repo.
+      GKG_DATA_KEY: ${GKG_DATA_KEY:-}
+      GKG_SYNC_SECONDS: ${GKG_SYNC_SECONDS:-120}
+    volumes:
+      - gkg_data:/data
+    restart: unless-stopped
+
+volumes:
+  gkg_data:

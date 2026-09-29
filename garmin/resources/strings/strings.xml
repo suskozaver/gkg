@@ -1,0 +1,5 @@
+<strings>
+    <string id="AppName">GKG</string>
+    <string id="ServerTitle">Server</string>
+    <string id="ServerPrompt">Your GKG server, e.g. https://gkg.example.com</string>
+</strings>

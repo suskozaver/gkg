@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Watch{% endblock %}
+{% block main %}
+<form method="post" action="/settings" class="stack">
+<section class="card">
+  <h1>What the watch shows</h1>
+  <p class="muted">Lists with any of the ticked labels, plus any list ticked by name. Nothing ticked: every list that is not archived.</p>
+  {% if keep.state == "off" %}<p class="bad-text">Keep is not connected, so there is nothing to pick from yet. <a href="/keep">Connect it</a>.</p>{% endif %}
+
+  {% if labels %}
+  <h3>Labels</h3>
+  <div class="checks">
+    {% for lb in labels %}
+    <label class="check"><input type="checkbox" name="labels" value="{{ lb }}" {% if lb in s.labels %}checked{% endif %}> {{ lb }}</label>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if notes %}
+  <h3>Notes</h3>
+  <div class="checks column">
+    {% for n in notes %}
+    {% if n.kind == "list" or s.textNotes or n.id in s.notes %}
+    <label class="check"><input type="checkbox" name="notes" value="{{ n.id }}" {% if n.id in s.notes %}checked{% endif %}>
+      {{ title_of(n) }}
+      <small class="muted">{% if n.kind == "note" %}note{% else %}{{ n["items"]|length }} items{% endif %}{% if n.archived %} · archived{% endif %}{% if n.labels %} · {{ n.labels|join(", ") }}{% endif %}</small>
+    </label>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <label class="check"><input type="checkbox" name="textNotes" {% if s.textNotes %}checked{% endif %}> Plain notes too (read-only on the watch)</label>
+</section>
+
+<section class="card">
+  <h2>Order and ticked items</h2>
+  <fieldset>
+    <legend>Order</legend>
+    <label class="check"><input type="radio" name="order" value="pinned" {% if s.order == "pinned" %}checked{% endif %}> Pinned first, then newest</label>
+    <label class="check"><input type="radio" name="order" value="updated" {% if s.order == "updated" %}checked{% endif %}> Newest first</label>
+    <label class="check"><input type="radio" name="order" value="title" {% if s.order == "title" %}checked{% endif %}> By title</label>
+  </fieldset>
+  <fieldset>
+    <legend>Ticked items</legend>
+    <label class="check"><input type="radio" name="checked" value="bottom" {% if s.checked == "bottom" %}checked{% endif %}> At the bottom</label>
+    <label class="check"><input type="radio" name="checked" value="hide" {% if s.checked == "hide" %}checked{% endif %}> Hidden</label>
+  </fieldset>
+</section>
+
+<section class="card">
+  <h2>Quick items</h2>
+  <p class="muted">Added to a list from the watch in two presses, no typing. One per line, up to 30.</p>
+  <textarea name="templates" rows="8" placeholder="Milk&#10;Bread&#10;Eggs">{{ s.templates|join("\n") }}</textarea>
+</section>
+
+<button class="primary">Save</button>
+</form>
+{% endblock %}

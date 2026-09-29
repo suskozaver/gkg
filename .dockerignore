@@ -1,0 +1,12 @@
+.git
+.env
+.transfer
+tests
+scripts
+garmin
+__pycache__
+.pytest_cache
+*.log
+.deploy*
+.push*
+.garmin*
