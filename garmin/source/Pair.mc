@@ -18,7 +18,7 @@ class PairView extends WatchUi.View {
     var secret as String? = null;
     var total as Number = 180;
     var endsAt as Number = 0;
-    /** :asking, :showing, :offline, :noserver (no GKG there), :expired, :busy (too many codes) */
+    /** :unset (no server set), :asking, :showing, :offline, :noserver (no GKG there), :expired, :busy (too many codes) */
     var state as Symbol = :asking;
     var renewals as Number = 0;
     var waiting as Boolean = false;
@@ -46,8 +46,14 @@ class PairView extends WatchUi.View {
 
     /** Is there a GKG server at the address set? Then a code. */
     function ask() as Void {
-        state = :asking;
         code = null;
+        if (!Gkg.hasServer()) {
+            // Nothing to ask yet: the server is set on the phone, and the app hears when it is.
+            state = :unset;
+            WatchUi.requestUpdate();
+            return;
+        }
+        state = :asking;
         WatchUi.requestUpdate();
         Communications.makeWebRequest(Gkg.base() + "/api/health", null, {
             :method => Communications.HTTP_REQUEST_METHOD_GET,
@@ -157,12 +163,15 @@ class PairView extends WatchUi.View {
             Gkg.text(dc, c, 346, Gkg.cond(28), (left / 60) + ":" + (left % 60).format("%02d"), Gkg.DIM, Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
-        Gkg.ring(dc, 1.0f, state == :asking ? Gkg.ACCENT : Gkg.DIM, 12);
+        Gkg.ring(dc, 1.0f, state == :asking || state == :unset ? Gkg.ACCENT : Gkg.DIM, 12);
         Gkg.logo(dc, c, 130, 58);
         Gkg.text(dc, c, 228, Gkg.cond(44), "GKG", Gkg.WHITE, Graphics.TEXT_JUSTIFY_CENTER);
         var line1 = "Getting a code…";
         var line2 = "";
-        if (state == :offline) {
+        if (state == :unset) {
+            line1 = "Set your server";
+            line2 = "on the phone";
+        } else if (state == :offline) {
             line1 = "No connection";
             line2 = "Is the phone nearby?";
         } else if (state == :noserver) {
@@ -178,9 +187,9 @@ class PairView extends WatchUi.View {
         if (!line2.equals("")) {
             Marquee.draw(dc, "line2", line2, Gkg.cond(28), Gkg.DIM, [c - 160, 318, 320, 36], Graphics.TEXT_JUSTIFY_CENTER);
         }
-        if (state == :noserver) {
-            Gkg.text(dc, c, 362, Gkg.cond(24), "Set it in Garmin Connect", Gkg.GREY, Graphics.TEXT_JUSTIFY_CENTER);
-            Gkg.text(dc, c, 394, Gkg.cond(24), "GKG › Settings", Gkg.GREY, Graphics.TEXT_JUSTIFY_CENTER);
+        if (state == :noserver || state == :unset) {
+            Gkg.text(dc, c, 362, Gkg.cond(24), "Connect IQ app", Gkg.GREY, Graphics.TEXT_JUSTIFY_CENTER);
+            Gkg.text(dc, c, 394, Gkg.cond(24), "GKG › Settings › Server", Gkg.GREY, Graphics.TEXT_JUSTIFY_CENTER);
         } else if (state != :asking) {
             Gkg.text(dc, c, 370, Gkg.cond(28), "START for a new code", Gkg.ACCENT, Graphics.TEXT_JUSTIFY_CENTER);
         }

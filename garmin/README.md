@@ -7,12 +7,16 @@ Solar, Enduro 3, Forerunner 245 Music to 955, the first MARQ). Every screen is d
 454×454 and scaled down, to 218 px on the smallest. Left out: watches with 128 KB for
 an app, the touch-first Venu and vívoactive, and Instinct with its second window. On a
 watch with a touch screen a tap ticks and a swipe scrolls; the buttons work on all.
-Its own app id (`manifest.xml`).
+Two app ids, as in Eat Train Feel: `manifest.xml` is the **public** app in the Connect IQ
+store, `manifest-beta.xml` the **beta** one (only the developer account sees it; a beta
+app cannot be published). They are otherwise the same file. To a watch a new id is a new
+app: it starts empty and is linked again with a code.
 
 What it does:
 - Talks to the GKG server set in the app's settings on the phone (Connect IQ app: My Device ›
-  My Apps › GKG › Settings; Garmin Connect: the watch › Connect IQ Apps › GKG › Settings) (default
-  `https://gkg.wtf.si`; a bare host name gets `https://`). Before a code it checks that
+  My Apps › GKG › Settings; Garmin Connect: the watch › Connect IQ Apps › GKG › Settings).
+  The setting starts empty and the watch says so ("Set your server"); a bare host name
+  gets `https://`. Before a code it checks that
   a GKG server answers there (`/api/health`), and the code screen names the server.
   The token is kept with the server it came from: change the setting and the watch forgets
   the token, the lists and any waiting ticks, and asks the new server for a code.
@@ -51,9 +55,10 @@ The deploy watcher builds it with the developer key in `C:\garmin-keys`:
     echo build        > .garmin-build-request    ->  garmin\bin\GKG.prg  (fēnix 8 AMOLED, simulator, USB)
     echo build fr255  > .garmin-build-request    ->  garmin\bin\GKG-fr255.prg (another watch)
     echo export       > .garmin-build-request    ->  garmin\bin\GKG.iq   (the store, every watch)
+    echo export beta  > .garmin-build-request    ->  garmin\bin\GKG-beta.iq (the beta app)
 
-Upload `GKG.iq` in the Connect IQ developer dashboard as a beta app; install it on the
-phone from its page in the Connect IQ app. Store and sideloaded builds are the same app
+Upload `GKG.iq` in the Connect IQ developer dashboard as the public app, `GKG-beta.iq` as
+the beta one; install either on the phone from its page in the Connect IQ app. Store and sideloaded builds are the same app
 only while they are signed with the same key.
 
 Simulator: `scripts\sim.bat` builds if needed, starts the simulator and loads the app.

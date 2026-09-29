@@ -18,8 +18,11 @@ import Toybox.Math;
 import Toybox.System;
 
 module Gkg {
-    /** The server a watch linked before the setting existed was linked to. */
-    const DEFAULT_SERVER = "https://gkg.wtf.si";
+    /**
+     * The server a watch linked before the setting existed (1.0.2 and older,
+     * the beta) was linked to. Not a default: the setting starts empty.
+     */
+    const OLD_SERVER = "https://gkg.wtf.si";
 
     const ACCENT = 0xF9B600;
     const WHITE = 0xFFFFFF;
@@ -58,7 +61,7 @@ module Gkg {
 
     /**
      * The server as set, tidied: spaces and a trailing slash go, and a bare
-     * host name gets https:// in front of it.
+     * host name gets https:// in front of it. Empty when none is set.
      */
     function base() as String {
         var v = null;
@@ -79,12 +82,16 @@ module Gkg {
             s = s.substring(0, s.length() - 1) as String;
         }
         if (s.equals("")) {
-            return DEFAULT_SERVER;
+            return "";
         }
         if (s.find("://") == null) {
             s = "https://" + s;
         }
         return s;
+    }
+
+    function hasServer() as Boolean {
+        return !base().equals("");
     }
 
     /** The server without https://, for the screen. */
@@ -97,7 +104,7 @@ module Gkg {
     /** The server this watch's token came from. */
     function linkedTo() as String {
         var v = Storage.getValue("server");
-        return v == null ? DEFAULT_SERVER : str(v);
+        return v == null ? OLD_SERVER : str(v);
     }
 
     /** Linked, but to another server than the one set now: the token is no good there. */
