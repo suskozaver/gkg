@@ -1,8 +1,13 @@
 # GKG for Garmin
 
-A Connect IQ watch app for the fēnix 8 AMOLED 47/51 mm (`fenix847mm`, 454×454,
-touch and buttons). Its own app id (`manifest.xml`), in the Connect IQ store as a
-**beta** app: only the developer account sees it.
+A Connect IQ watch app for 74 round Garmin watches with buttons, the same list as Eat
+Train Feel's: the AMOLED ones (fēnix 8 and 9, epix 2, Forerunner 165 to 970, MARQ 2,
+Descent, D2, Approach S70) and the MIP ones down to API 3.3 (fēnix 5 Plus to 9 Pro
+Solar, Enduro 3, Forerunner 245 Music to 955, the first MARQ). Every screen is drawn for
+454×454 and scaled down, to 218 px on the smallest. Left out: watches with 128 KB for
+an app, the touch-first Venu and vívoactive, and Instinct with its second window. On a
+watch with a touch screen a tap ticks and a swipe scrolls; the buttons work on all.
+Its own app id (`manifest.xml`).
 
 What it does:
 - Talks to the GKG server set in **Garmin Connect › GKG › Settings › Server** (default
@@ -42,8 +47,9 @@ root.
 
 The deploy watcher builds it with the developer key in `C:\garmin-keys`:
 
-    echo build  > .garmin-build-request    ->  garmin\bin\GKG.prg  (simulator, USB)
-    echo export > .garmin-build-request    ->  garmin\bin\GKG.iq   (the store)
+    echo build        > .garmin-build-request    ->  garmin\bin\GKG.prg  (fēnix 8 AMOLED, simulator, USB)
+    echo build fr255  > .garmin-build-request    ->  garmin\bin\GKG-fr255.prg (another watch)
+    echo export       > .garmin-build-request    ->  garmin\bin\GKG.iq   (the store, every watch)
 
 Upload `GKG.iq` in the Connect IQ developer dashboard as a beta app; install it on the
 phone from its page in the Connect IQ app. Store and sideloaded builds are the same app

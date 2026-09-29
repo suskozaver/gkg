@@ -135,7 +135,7 @@ python -m pytest -q
 GKG_DATA_DIR=./data uvicorn app.main:create_app --factory --port 8791
 ```
 
-The watch app is in `garmin/` (Connect IQ, Monkey C); build it with the Connect IQ SDK
+The watch app is in `garmin/` (Connect IQ, Monkey C; 74 round watches with buttons); build it with the Connect IQ SDK
 and your own developer key. `scripts/` holds the maintainer's deploy helpers for
 Windows (a watcher that pushes, deploys and builds the watch app on request).
 
