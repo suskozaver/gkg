@@ -23,8 +23,8 @@ class ItemsView extends WatchUi.View {
     var moving as Boolean = false;
     var poll as Poll = new Poll();
     var shift as Number = 0;
-    const ROW = 72;
-    const LINE = 40;
+    const ROW = 86;
+    const LINE = 48;
 
     function initialize(id as String, root as Boolean) {
         View.initialize();
@@ -204,18 +204,18 @@ class ItemsView extends WatchUi.View {
                 dc.setColor(Gkg.BOX, Gkg.BOX);
                 dc.fillRoundedRectangle(Gkg.s(c - half - 8), Gkg.s(ry - ROW / 2 + 4), Gkg.s(2 * half + 16), Gkg.s(ROW - 8), Gkg.s(16));
             }
-            var indent = it["sub"] == true ? 28 : 0;
-            var bx = c - half + 22 + indent;
-            Gkg.box(dc, bx, ry, 30, done, on);
-            var tx = bx + 30;
+            var indent = it["sub"] == true ? 34 : 0;
+            var bx = c - half + 26 + indent;
+            Gkg.box(dc, bx, ry, 36, done, on);
+            var tx = bx + 36;
             var tw = c + half - 8 - tx;
-            var f = Gkg.cond(32);
+            var f = Gkg.cond(38);
             var color = done ? Gkg.DIM : on ? Gkg.WHITE : Gkg.GREY;
             var name = Gkg.str(it["text"]);
             if (on) {
-                Marquee.draw(dc, "row", name, f, color, [tx, ry, tw, 42], Graphics.TEXT_JUSTIFY_LEFT);
+                Marquee.draw(dc, "row", name, f, color, [tx, ry, tw, 50], Graphics.TEXT_JUSTIFY_LEFT);
             } else {
-                dc.setClip(Gkg.s(tx), Gkg.s(ry - 22), Gkg.s(tw), Gkg.s(44));
+                dc.setClip(Gkg.s(tx), Gkg.s(ry - 26), Gkg.s(tw), Gkg.s(52));
                 Gkg.text(dc, tx, ry, f, name, color, Graphics.TEXT_JUSTIFY_LEFT);
                 dc.clearClip();
             }
@@ -235,7 +235,7 @@ class ItemsView extends WatchUi.View {
 
     private function drawNote(dc as Graphics.Dc, w as Number, l as Dictionary) as Void {
         var c = w / 2;
-        var f = Gkg.regular(30);
+        var f = Gkg.regular(36);
         if (lines == null) {
             lines = Gkg.wrap(dc, Gkg.str(l["text"]), f, Gkg.s(300));
         }

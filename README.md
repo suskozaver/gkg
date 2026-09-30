@@ -124,7 +124,7 @@ to the server through the phone; without the phone they wait on the watch. More 
   token only to the server it was linked with, and only over https.
 - **Web**: every form post must carry this site's Origin (or Referer); responses carry a
   strict Content-Security-Policy (no scripts), `X-Frame-Options: DENY`, `nosniff` and
-  `no-referrer`. Request bodies over 64 KB are refused. `/api/health` says nothing about
+  `Referrer-Policy: same-origin`. Request bodies over 64 KB are refused. `/api/health` says nothing about
   data.
 
 ## The watch API

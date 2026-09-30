@@ -28,13 +28,17 @@ module Rows {
         return i >= 0 && i < n ? i : -1;
     }
 
-    /** The header over the rows: a title and one line under it. */
-    function header(dc as Graphics.Dc, title as String, sub as String, subColor as Number) as Void {
+    /** The header over the rows: a title (null: GKG, as the brand writes it) and one line under it. */
+    function header(dc as Graphics.Dc, title as String?, sub as String, subColor as Number) as Void {
         var c = Gkg.REF / 2;
         dc.setColor(Gkg.BLACK, Gkg.BLACK);
-        dc.fillRectangle(0, 0, dc.getWidth(), Gkg.s(TOP - 8));
-        Marquee.draw(dc, "title", title, Gkg.cond(32), Gkg.ACCENT, [c - 120, 60, 240, 40], Graphics.TEXT_JUSTIFY_CENTER);
-        Marquee.draw(dc, "sub", sub, Gkg.cond(24), subColor, [c - 140, 96, 280, 30], Graphics.TEXT_JUSTIFY_CENTER);
+        dc.fillRectangle(0, 0, dc.getWidth(), Gkg.s(TOP - 6));
+        if (title == null) {
+            Gkg.brand(dc, c, 58, Gkg.cond(38));
+        } else {
+            Marquee.draw(dc, "title", title as String, Gkg.cond(38), Gkg.ACCENT, [c - 120, 58, 240, 46], Graphics.TEXT_JUSTIFY_CENTER);
+        }
+        Marquee.draw(dc, "sub", sub, Gkg.cond(28), subColor, [c - 140, 98, 280, 34], Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     /** Nothing to show: the mark in a ring (which runs while syncing) and two lines. */
@@ -43,10 +47,12 @@ module Rows {
         var server = getApp().server;
         if (server.state == :busy) {
             Gkg.ring(dc, 1.0f, Gkg.BOX, 12);
-            Gkg.ring(dc, (System.getTimer() % 1500).toFloat() / 1500, Gkg.ACCENT, 12);
+            Gkg.brandRing(dc, (System.getTimer() % 1500).toFloat() / 1500, 12);
             Marquee.active = true;
+        } else if (server.trouble()) {
+            Gkg.ring(dc, 1.0f, Gkg.DIM, 12);
         } else {
-            Gkg.ring(dc, 1.0f, server.trouble() ? Gkg.DIM : Gkg.ACCENT, 12);
+            Gkg.brandRing(dc, 1.0f, 12);
         }
         Gkg.logo(dc, c, 140, 56);
         Gkg.text(dc, c, 240, Gkg.cond(40), line1, Gkg.WHITE, Graphics.TEXT_JUSTIFY_CENTER);
@@ -100,7 +106,7 @@ class ListsView extends WatchUi.View {
     var moving as Boolean = false;
     var poll as Poll = new Poll();
     var shift as Number = 0;
-    const ROW = 84;
+    const ROW = 100;
 
     function initialize() {
         View.initialize();
@@ -209,16 +215,16 @@ class ListsView extends WatchUi.View {
                 dc.setColor(Gkg.BOX, Gkg.BOX);
                 dc.fillRoundedRectangle(Gkg.s(c - half - 10), Gkg.s(ry - ROW / 2 + 4), Gkg.s(2 * half + 20), Gkg.s(ROW - 8), Gkg.s(16));
                 dc.setColor(Gkg.ACCENT, Gkg.ACCENT);
-                dc.fillRoundedRectangle(Gkg.s(c - half - 10), Gkg.s(ry - ROW / 2 + 16), Gkg.s(6), Gkg.s(ROW - 32), Gkg.s(3));
+                dc.fillRoundedRectangle(Gkg.s(c - half - 10), Gkg.s(ry - ROW / 2 + 18), Gkg.s(6), Gkg.s(ROW - 36), Gkg.s(3));
             }
             var name = Gkg.str(l["title"]);
-            var f = Gkg.cond(36);
+            var f = Gkg.cond(43);
             if (on) {
-                Marquee.draw(dc, "row", name, f, Gkg.WHITE, [c - half + 4, ry - 14, 2 * half - 8, 42], Graphics.TEXT_JUSTIFY_CENTER);
+                Marquee.draw(dc, "row", name, f, Gkg.WHITE, [c - half + 4, ry - 16, 2 * half - 8, 50], Graphics.TEXT_JUSTIFY_CENTER);
             } else {
-                dc.setClip(Gkg.s(c - half), Gkg.s(ry - 36), Gkg.s(2 * half), Gkg.s(44));
+                dc.setClip(Gkg.s(c - half), Gkg.s(ry - 42), Gkg.s(2 * half), Gkg.s(52));
                 var tw = Gkg.un(dc.getTextWidthInPixels(name, f));
-                Gkg.text(dc, tw <= 2 * half ? c : c - half, ry - 14, f, name, Gkg.GREY, tw <= 2 * half ? Graphics.TEXT_JUSTIFY_CENTER : Graphics.TEXT_JUSTIFY_LEFT);
+                Gkg.text(dc, tw <= 2 * half ? c : c - half, ry - 16, f, name, Gkg.GREY, tw <= 2 * half ? Graphics.TEXT_JUSTIFY_CENTER : Graphics.TEXT_JUSTIFY_LEFT);
                 dc.clearClip();
             }
             var sub = "";
@@ -231,9 +237,9 @@ class ListsView extends WatchUi.View {
             if (l["pinned"] == true) {
                 sub = "Pinned · " + sub;
             }
-            Gkg.text(dc, c, ry + 20, Gkg.cond(24), sub, on ? Gkg.ACCENT : Gkg.DIM, Graphics.TEXT_JUSTIFY_CENTER);
+            Gkg.text(dc, c, ry + 24, Gkg.cond(28), sub, on ? Gkg.ACCENT : Gkg.DIM, Graphics.TEXT_JUSTIFY_CENTER);
         }
-        Rows.header(dc, "GKG", Rows.sub(list.size() == 1 ? "1 list" : list.size() + " lists"), getApp().server.trouble() ? Gkg.DIM : Gkg.GREY);
+        Rows.header(dc, null, Rows.sub(list.size() == 1 ? "1 list" : list.size() + " lists"), getApp().server.trouble() ? Gkg.DIM : Gkg.GREY);
         moving = Marquee.active;
     }
 }

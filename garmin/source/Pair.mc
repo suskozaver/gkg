@@ -155,7 +155,7 @@ class PairView extends WatchUi.View {
             }
             var s = code as String;
             Gkg.ring(dc, 1.0f, Gkg.BOX, 12);
-            Gkg.ring(dc, left.toFloat() / total, Gkg.ACCENT, 12);
+            Gkg.brandRing(dc, left.toFloat() / total, 12);
             Gkg.logo(dc, c, 80, 34);
             Gkg.text(dc, c, 150, Gkg.cond(30), "Link this watch", Gkg.WHITE, Graphics.TEXT_JUSTIFY_CENTER);
             Gkg.text(dc, c, 228, Gkg.digits(96), s.substring(0, 3) + " " + s.substring(3, 6), Gkg.WHITE, Graphics.TEXT_JUSTIFY_CENTER);
@@ -164,9 +164,13 @@ class PairView extends WatchUi.View {
             Gkg.text(dc, c, 346, Gkg.cond(28), (left / 60) + ":" + (left % 60).format("%02d"), Gkg.DIM, Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
-        Gkg.ring(dc, 1.0f, state == :asking || state == :unset ? Gkg.ACCENT : Gkg.DIM, 12);
+        if (state == :asking || state == :unset) {
+            Gkg.brandRing(dc, 1.0f, 12);
+        } else {
+            Gkg.ring(dc, 1.0f, Gkg.DIM, 12);
+        }
         Gkg.logo(dc, c, 130, 58);
-        Gkg.text(dc, c, 228, Gkg.cond(44), "GKG", Gkg.WHITE, Graphics.TEXT_JUSTIFY_CENTER);
+        Gkg.brand(dc, c, 228, Gkg.cond(44));
         var line1 = "Getting a code…";
         var line2 = "";
         if (state == :unset) {

@@ -19,6 +19,8 @@ import Toybox.System;
 
 module Gkg {
     const ACCENT = 0xF9B600;
+    /** Garmin's blue: the other half of the mark, the ring and the last G of GKG. */
+    const BLUE = 0x007CC3;
     const WHITE = 0xFFFFFF;
     const GREY = 0x9E9E9E;
     const DIM = 0x6B6B6B;
@@ -311,6 +313,49 @@ module Gkg {
         dc.setPenWidth(1);
     }
 
+    /** An arc along the bezel, clockwise from `start` degrees (0 = 3 o'clock, 90 = the top) for `sweep` degrees. */
+    function arc(dc as Graphics.Dc, start as Number, sweep as Number, color as Number, width as Number) as Void {
+        if (sweep <= 0) {
+            return;
+        }
+        var c = dc.getWidth() / 2;
+        var pen = s(width);
+        dc.setPenWidth(pen);
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        var end = start - sweep;
+        while (end < 0) {
+            end += 360;
+        }
+        dc.drawArc(c, c, c - pen / 2 - 1, Graphics.ARC_CLOCKWISE, start, end);
+        dc.setPenWidth(1);
+    }
+
+    /**
+     * The brand ring: the right half blue, the left half yellow, like the mark.
+     * `frac` of it, clockwise from the top: the blue half first, then the yellow.
+     */
+    function brandRing(dc as Graphics.Dc, frac as Float, width as Number) as Void {
+        if (frac <= 0.002) {
+            return;
+        }
+        var deg = frac >= 0.999 ? 360 : (360 * frac).toNumber();
+        arc(dc, 90, deg < 180 ? deg : 180, BLUE, width);
+        if (deg > 180) {
+            arc(dc, 270, deg - 180, ACCENT, width);
+        }
+    }
+
+    /** GKG as the brand writes it: GK yellow, the last G blue, centred on (px, py). */
+    function brand(dc as Graphics.Dc, px as Number, py as Number, f as Graphics.FontType) as Void {
+        var w1 = dc.getTextWidthInPixels("GK", f);
+        var w2 = dc.getTextWidthInPixels("G", f);
+        var x = s(px) - (w1 + w2) / 2;
+        dc.setColor(ACCENT, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, s(py), f, "GK", Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.setColor(BLUE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x + w1, s(py), f, "G", Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
     /** A tick mark: two strokes, round-ended, in a box of `size` centred on (px, py). */
     function check(dc as Graphics.Dc, px as Number, py as Number, size as Number, color as Number, pen as Number) as Void {
         var x = s(px);
@@ -333,10 +378,17 @@ module Gkg {
         dc.setPenWidth(1);
     }
 
-    /** The app's mark, as on the launcher icon: a yellow disc with a tick. */
+    /** The app's mark, as on the launcher icon: a disc, left half yellow and right half blue, with a tick. */
     function logo(dc as Graphics.Dc, px as Number, py as Number, pr as Number) as Void {
+        var x = s(px);
+        var y = s(py);
+        var r = s(pr);
         dc.setColor(ACCENT, ACCENT);
-        dc.fillCircle(s(px), s(py), s(pr));
+        dc.fillCircle(x, y, r);
+        dc.setClip(x, y - r - 1, r + 2, 2 * r + 3);
+        dc.setColor(BLUE, BLUE);
+        dc.fillCircle(x, y, r);
+        dc.clearClip();
         check(dc, px, py, pr * 11 / 10, INK, pr * 22 / 100);
     }
 

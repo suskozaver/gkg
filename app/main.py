@@ -57,7 +57,9 @@ HEADERS = {
                                "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    # same-origin, not no-referrer: with no-referrer a browser posts forms with Origin: null,
+    # and the Origin check (same_origin) would refuse every one of them.
+    "Referrer-Policy": "same-origin",
 }
 
 

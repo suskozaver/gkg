@@ -1,10 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
   <rect width="500" height="500" fill="#12110d"/>
   <circle cx="250" cy="250" r="205" fill="#000"/>
-  <circle cx="250" cy="250" r="199" fill="none" stroke="#f9b600" stroke-width="12"/>
-  <circle cx="250" cy="170" r="62" fill="#f9b600"/>
+  <path d="M250 51a199 199 0 0 0 0 398" fill="none" stroke="#f9b600" stroke-width="12"/>
+  <path d="M250 51a199 199 0 0 1 0 398" fill="none" stroke="#007cc3" stroke-width="12"/>
+  <path d="M250 108a62 62 0 0 0 0 124z" fill="#f9b600"/>
+  <path d="M250 108a62 62 0 0 1 0 124z" fill="#007cc3"/>
   <path d="M218 172l22 22 44-45" fill="none" stroke="#1f1c12" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="250" y="292" font-family="Roboto Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="54" fill="#fff" text-anchor="middle">GKG</text>
+  <text x="250" y="292" font-family="Roboto Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="54" text-anchor="middle"><tspan fill="#f9b600">GK</tspan><tspan fill="#007cc3">G</tspan></text>
   <g font-family="Roboto Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="26">
     <rect x="150" y="318" width="24" height="24" rx="5" fill="#f9b600"/>
     <path d="M155 330l5 5 9-10" fill="none" stroke="#1f1c12" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
