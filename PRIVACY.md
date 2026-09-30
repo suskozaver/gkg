@@ -1,6 +1,6 @@
 # GKG — Privacy Policy
 
-*Effective 29 September 2026.*
+*Effective 29 September 2026, updated 30 September 2026.*
 
 GKG is a Connect IQ app for Garmin watches that shows lists from Google Keep and lets
 you tick items off. It is not affiliated with, endorsed by or sponsored by Google or
@@ -20,7 +20,7 @@ Through your phone's connection, the app sends that server:
 - which items you ticked or unticked, and in which list.
 
 It receives from the server the lists chosen there: their titles and items and whether
-each item is ticked. The watch keeps the last lists it received, the token and any
+each item is ticked, and the text of plain notes, if they are turned on there. The watch keeps the last lists it received, the token and any
 ticks not yet sent, on the watch only. **Unlink watch** in the app's menu, or removing
 the app, deletes them.
 
