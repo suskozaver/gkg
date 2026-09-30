@@ -181,6 +181,8 @@ def test_security_headers_and_body_limit(env):
     r = c.get("/login")
     assert r.headers["x-frame-options"] == "DENY" and "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert r.headers["x-content-type-options"] == "nosniff"
+    # no-referrer would make browsers post forms with Origin: null, which the Origin check refuses.
+    assert r.headers["referrer-policy"] == "same-origin"
     big = c.post("/api/watch/status", content=b"{" + b" " * (70 * 1024) + b"}", headers={"content-type": "application/json"})
     assert big.status_code == 413
 
