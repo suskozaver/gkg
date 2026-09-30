@@ -3,7 +3,7 @@
 Your Google Keep lists on a Garmin watch: read them and tick items off from your
 wrist. GKG is two parts:
 
-- **the watch app**, from the Connect IQ store, and
+- **the watch app**, [GKG in the Connect IQ store](https://apps.garmin.com/en-US/apps/03b52f15-6616-4432-ac89-fb31542885e0), and
 - **the GKG server**, this code, which **you run yourself** (Docker). It signs in to
   Google Keep for you, keeps your notes encrypted, and gives the watch only the lists
   you picked.
@@ -86,7 +86,7 @@ Updating: `git pull && docker compose up -d --build`. Backing up: the Docker vol
 
 ## The watch
 
-1. Install **GKG** from the Connect IQ store.
+1. Install **[GKG from the Connect IQ store](https://apps.garmin.com/en-US/apps/03b52f15-6616-4432-ac89-fb31542885e0)** on your watch.
 2. Open GKG's settings on the phone: in the **Connect IQ** app, My Device › My Apps ›
    GKG › **Settings**; or in **Garmin Connect**, your watch › Connect IQ Apps › GKG ›
    **Settings**. Set **Server** to your server's address, e.g. `https://gkg.example.com`.
