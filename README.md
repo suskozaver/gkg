@@ -36,7 +36,7 @@ talk to a server without one. It must be reachable from the internet, since the 
 reaches it through your phone.
 
 ```bash
-git clone https://github.com/suskozaver/googlekeep-garmin.git gkg
+git clone https://github.com/suskozaver/gkg.git
 cd gkg
 cp .env.example .env         # then fill it in: the commands for the two keys are in the file
 docker compose up -d --build
