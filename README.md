@@ -2,6 +2,8 @@
 
 ![GKG: the server's web page and the same list on a Garmin watch](docs/hero.png)
 
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/susko)
+
 Your Google Keep lists on a Garmin watch: read them and tick items off from your
 wrist. GKG is two parts:
 
@@ -184,6 +186,11 @@ GKG_DATA_DIR=./data uvicorn app.main:create_app --factory --port 8791
 
 The watch app is in `garmin/` (Connect IQ, Monkey C; 74 round watches with buttons); build it
 with the Connect IQ SDK and your own developer key, see [garmin/README.md](garmin/README.md).
+
+## Support
+
+GKG is free. If it saves you a trip back for the forgotten bread, you can
+[buy me a coffee](https://buymeacoffee.com/susko). Bugs and ideas: [issues](https://github.com/suskozaver/gkg/issues).
 
 ## License
 
