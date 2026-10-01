@@ -1,5 +1,7 @@
 # GKG — Keep lists on your Garmin watch
 
+![GKG: the server's web page and the same list on a Garmin watch](docs/hero.png)
+
 Your Google Keep lists on a Garmin watch: read them and tick items off from your
 wrist. GKG is two parts:
 
@@ -15,6 +17,32 @@ watch ──(Bluetooth)──> phone ──(HTTPS)──> your GKG server ──
 The watch never talks to Google, and nothing goes to the developer: see
 [PRIVACY.md](PRIVACY.md). GKG is not affiliated with, endorsed by or sponsored by
 Google or Garmin.
+
+## Screenshots
+
+On the watch: a list, the lists, and linking with a code.
+
+<p>
+  <img src="docs/watch-list.png" width="250" alt="A list on the watch: tick items off">
+  <img src="docs/watch-lists.png" width="250" alt="The lists on the watch">
+  <img src="docs/watch-link.png" width="250" alt="Linking the watch with a six-digit code">
+</p>
+
+On your server's web pages: Home (what the watch shows) and Watch (which lists it gets). They follow
+the browser's light or dark theme.
+
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/web-home-dark.png">
+    <img src="docs/web-home-light.png" width="400" alt="Home: Keep connected, linked watches and the lists the watch shows">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/web-watch-dark.png">
+    <img src="docs/web-watch-light.png" width="400" alt="Watch: pick lists by label or by name, their order, and ticked items">
+  </picture>
+</p>
+
+The data in the screenshots is made up.
 
 ## Why a server of your own
 
